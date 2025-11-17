@@ -14,6 +14,7 @@ permissions:
 jobs:
   train-and-report:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -42,7 +43,9 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Création du rapport Markdown
+          # -----------------------------
+          # Build markdown report
+          # -----------------------------
           {
             echo "# Customer Churn Model Training Report"
             echo ""
@@ -61,10 +64,7 @@ jobs:
             echo "![Confusion Matrix Comparison](conf_matrix.png)"
           } > report.md
 
-          # Publication du rapport + upload correct de l'image (syntaxe CML v3)
-          cml comment create report.md \
-            --publish \
-            --assets=./conf_matrix.png
-
-          # Option bonus : si tu as plusieurs images
-          # cml comment create report.md --publish --assets=./conf_matrix_raw.png --assets=./conf_matrix_weights.png --assets=./conf_matrix_smote.png
+          # -----------------------------
+          # Publish CML comment with assets
+          # -----------------------------
+          cml comment create report.md --publish --assets=conf_matrix.png
