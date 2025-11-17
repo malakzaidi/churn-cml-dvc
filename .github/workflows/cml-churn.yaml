@@ -16,46 +16,69 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ----------------------
+      # Checkout
+      # ----------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ----------------------
+      # Python
+      # ----------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-          cache: 'pip'
+          python-version: "3.10"
+          cache: "pip"
 
+      # ----------------------
+      # CML
+      # ----------------------
       - name: Setup CML
         uses: iterative/setup-cml@v3
         with:
           version: latest
 
-      - name: Install dependencies
+      # ----------------------
+      # Create folders (important)
+      # ----------------------
+      - name: Prepare folders
+        run: mkdir -p models reports
+
+      # ----------------------
+      # Install + run training + evaluation
+      # → doit produire :
+      #   - metrics.json
+      #   - reports/*.png
+      # ----------------------
+      - name: Install & Run Training + Evaluation
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
+          python train.py
+          python evaluate.py
 
-      - name: Train model
-        run: |
-          python script.py
-
-      - name: Build CML report (compact)
+      # ----------------------
+      # Build CML report
+      # Compact, lisible, robuste
+      # ----------------------
+      - name: Build CML Report
         run: |
           set -euo pipefail
           {
             printf "## Customer Churn Training Report\n\n"
-            printf "### Metrics\n\n\`\`\`json\n"
+            printf "### 📊 Metrics\n\n\`\`\`json\n"
             
-            # Si metrics.json existe et n'est pas vide
             if [ -s metrics.json ]; then
               cat metrics.json
             else
               printf "{}\n"
             fi
-            
-            printf "\n\`\`\`\n\n"
 
-            # Ajouter les images si elles existent
+            printf "\n\`\`\`\n\n"
+            printf "### 🖼️ Visualizations\n\n"
+
+            # Images inline (CML v3 auto-upload)
             for img in reports/confusion_matrix.png reports/feature_importance.png; do
               if [ -f "$img" ]; then
                 printf "![inline](%s)\n" "$img"
@@ -65,9 +88,12 @@ jobs:
             printf "\n"
           } > report.md
 
-      - name: Publish CML report
+      # ----------------------
+      # Publish report
+      # --publish = upload auto des images
+      # ----------------------
+      - name: Publish CML Report
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cml comment create report.md --publish
-
