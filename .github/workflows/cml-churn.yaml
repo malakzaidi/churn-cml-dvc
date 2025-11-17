@@ -43,25 +43,31 @@ jobs:
         run: |
           set -euo pipefail
           {
-            printf "## Rapport\n\n### Métriques\n\n\`\`\`json\n"
+            printf "## Customer Churn Training Report\n\n"
+            printf "### Metrics\n\n\`\`\`json\n"
+            
+            # Si metrics.json existe et n'est pas vide
             if [ -s metrics.json ]; then
               cat metrics.json
             else
-              printf '{}\n'
+              printf "{}\n"
             fi
-            printf "\`\`\`\n\n"
-          
+            
+            printf "\n\`\`\`\n\n"
+
+            # Ajouter les images si elles existent
             for img in reports/confusion_matrix.png reports/feature_importance.png; do
               if [ -f "$img" ]; then
                 printf "![inline](%s)\n" "$img"
               fi
             done
-          
+
             printf "\n"
           } > report.md
 
-      - name: Create & publish CML report
+      - name: Publish CML report
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cml comment create report.md --publish
+
