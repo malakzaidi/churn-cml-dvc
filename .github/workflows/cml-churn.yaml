@@ -43,24 +43,26 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cat > report.md << 'EOF'
-          # Customer Churn Model Training Report
+          # Créer le fichier report.md
+          echo "# Customer Churn Model Training Report" > report.md
+          echo "" >> report.md
           
-          ## Model Performance Metrics
+          echo "## Model Performance Metrics" >> report.md
+          echo "" >> report.md
+          echo "\`\`\`" >> report.md
+          cat metrics.txt | awk '{print "  " $0}' >> report.md
+          echo "\`\`\`" >> report.md
+          echo "" >> report.md
           
-          EOF
-          cat metrics.txt >> report.md
-          cat >> report.md << 'EOF'
+          echo "## Confusion Matrix Comparison" >> report.md
+          echo "" >> report.md
+          echo "Comparison of three approaches to handle class imbalance:" >> report.md
+          echo "" >> report.md
+          echo "1. **Without imbalance handling**" >> report.md
+          echo "2. **With class weights**" >> report.md
+          echo "3. **With SMOTE oversampling**" >> report.md
+          echo "" >> report.md
+          echo "![Confusion Matrix Comparison](conf_matrix.png)" >> report.md
           
-          ## Confusion Matrix Comparison
-          
-          Comparison of three approaches to handle class imbalance:
-          
-          1. **Without imbalance handling**
-          2. **With class weights**
-          3. **With SMOTE oversampling**
-          
-          ![Confusion Matrix Comparison](conf_matrix.png)
-          EOF
-          
+          # Publier le rapport avec CML
           cml comment create report.md
