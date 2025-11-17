@@ -43,9 +43,6 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # -----------------------------
-          # Build markdown report
-          # -----------------------------
           {
             echo "# Customer Churn Model Training Report"
             echo ""
@@ -64,7 +61,5 @@ jobs:
             echo "![Confusion Matrix Comparison](conf_matrix.png)"
           } > report.md
 
-          # -----------------------------
-          # Publish CML comment with assets
-          # -----------------------------
-          cml comment create report.md --publish --assets=conf_matrix.png
+          # Publish (auto uploads images in markdown)
+          cml comment create report.md --publish
