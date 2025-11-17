@@ -1,15 +1,11 @@
 name: CML - Customer Churn Training
 
-# Déclenche le workflow sur push et pull request vers la branche dev
 on:
   push:
-    branches:
-      - dev
+    branches: [ dev ]
   pull_request:
-    branches:
-      - dev
+    branches: [ dev ]
 
-# Permissions nécessaires pour CML (écrire des commentaires PR)
 permissions:
   contents: read
   pull-requests: write
@@ -19,62 +15,56 @@ jobs:
   train-and-report:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout du code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Configuration de Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: 'pip'
 
-      # 3. Installation de CML (version latest = v3+)
       - name: Setup CML
         uses: iterative/setup-cml@v3
         with:
           version: latest
 
-      # 4. Installation des dépendances Python
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 5. Entraînement du modèle
       - name: Train model
         run: |
           python script.py
 
-      # 6. Création du rapport CML + publication de l'image
-      - name: Create CML report
+      - name: Create & publish CML report
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Création du fichier report.md
-          echo "# Customer Churn Model Training Report" >> report.md
-          echo "" >> report.md
-          echo "## Model Performance Metrics" >> report.md
-          echo "" >> report.md
-          cat metrics.txt >> report.md
-          echo "" >> report.md
+          # Création du rapport Markdown
+          {
+            echo "# Customer Churn Model Training Report"
+            echo ""
+            echo "## Model Performance Metrics"
+            echo ""
+            cat metrics.txt
+            echo ""
+            echo "## Confusion Matrix Comparison"
+            echo ""
+            echo "Comparison of three approaches to handle class imbalance:"
+            echo ""
+            echo "1. **Without imbalance handling**"
+            echo "2. **With class weights**"
+            echo "3. **With SMOTE oversampling**"
+            echo ""
+            echo "![Confusion Matrix Comparison](conf_matrix.png)"
+          } > report.md
 
-          echo "## Confusion Matrices Comparison" >> report.md
-          echo "" >> report.md
-          echo "Comparison of three approaches to handle class imbalance:" >> report.md
-          echo "" >> report.md
-          echo "1. **Without imbalance handling**" >> report.md
-          echo "2. **With class weights**" >> report.md
-          echo "3. **With SMOTE oversampling**" >> report.md
-          echo "" >> report.md
-          echo "" >> report.md
-
-          # Insertion de l'image dans le markdown (le lien sera résolu automatiquement par CML)
-          echo "![Confusion Matrix Comparison](conf_matrix.png)" >> report.md
-
-          # Publication du rapport + upload de l'image avec la syntaxe correcte CML v3
+          # Publication du rapport + upload correct de l'image (syntaxe CML v3)
           cml comment create report.md \
             --publish \
-            --assets=conf_matrix.png \
-            --watermark-title="cml-churn-report-${{ github.run_id }}"
+            --assets=./conf_matrix.png
+
+          # Option bonus : si tu as plusieurs images
+          # cml comment create report.md --publish --assets=./conf_matrix_raw.png --assets=./conf_matrix_weights.png --assets=./conf_matrix_smote.png
