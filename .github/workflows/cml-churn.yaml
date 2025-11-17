@@ -9,7 +9,7 @@ on:
     branches:
       - dev
 
-# Permissions nécessaires pour CML
+# Permissions nécessaires pour CML (écrire des commentaires PR)
 permissions:
   contents: read
   pull-requests: write
@@ -18,7 +18,6 @@ permissions:
 jobs:
   train-and-report:
     runs-on: ubuntu-latest
-
     steps:
       # 1. Checkout du code
       - name: Checkout repository
@@ -31,7 +30,7 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
-      # 3. Installation de CML (version 3 avec token)
+      # 3. Installation de CML (version latest = v3+)
       - name: Setup CML
         uses: iterative/setup-cml@v3
         with:
@@ -48,29 +47,34 @@ jobs:
         run: |
           python script.py
 
-      # 6. Création du rapport CML
+      # 6. Création du rapport CML + publication de l'image
       - name: Create CML report
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Création du header du rapport
-          echo "# 🎯 Customer Churn Model Training Report" >> report.md
+          # Création du fichier report.md
+          echo "# Customer Churn Model Training Report" >> report.md
           echo "" >> report.md
-          echo "## 📊 Model Performance Metrics" >> report.md
+          echo "## Model Performance Metrics" >> report.md
           echo "" >> report.md
-          
-          # Ajout du contenu de metrics.txt
           cat metrics.txt >> report.md
           echo "" >> report.md
-          
-          # Ajout de la matrice de confusion combinée
-          echo "## 🔥 Confusion Matrices Comparison" >> report.md
+
+          echo "## Confusion Matrices Comparison" >> report.md
           echo "" >> report.md
           echo "Comparison of three approaches to handle class imbalance:" >> report.md
+          echo "" >> report.md
           echo "1. **Without imbalance handling**" >> report.md
           echo "2. **With class weights**" >> report.md
           echo "3. **With SMOTE oversampling**" >> report.md
           echo "" >> report.md
-          
-          # Publication de l'image avec CML
-          cml comment create report.md --publish conf_matrix.png
+          echo "" >> report.md
+
+          # Insertion de l'image dans le markdown (le lien sera résolu automatiquement par CML)
+          echo "![Confusion Matrix Comparison](conf_matrix.png)" >> report.md
+
+          # Publication du rapport + upload de l'image avec la syntaxe correcte CML v3
+          cml comment create report.md \
+            --publish \
+            --assets=conf_matrix.png \
+            --watermark-title="cml-churn-report-${{ github.run_id }}"
