@@ -1,0 +1,49 @@
+```
+
+============================================================
+Model: RandomForestClassifier
+Configuration: without-imbalance
+============================================================
+
+Training Set:
+  - F1-Score:   68.68%
+  - Precision:  93.17%
+  - Recall:     54.39%
+
+Test Set:
+  - F1-Score:   57.10%
+  - Precision:  76.76%
+  - Recall:     45.45%
+
+============================================================
+Model: RandomForestClassifier
+Configuration: with-class-weights
+============================================================
+
+Training Set:
+  - F1-Score:   78.74%
+  - Precision:  75.56%
+  - Recall:     82.20%
+
+Test Set:
+  - F1-Score:   62.91%
+  - Precision:  61.50%
+  - Recall:     64.37%
+
+============================================================
+Model: RandomForestClassifier
+Configuration: with-SMOTE
+============================================================
+
+Training Set:
+  - F1-Score:   87.74%
+  - Precision:  91.93%
+  - Recall:     83.92%
+
+Test Set:
+  - F1-Score:   60.87%
+  - Precision:  65.62%
+  - Recall:     56.76%
+
+============================================================
+```
