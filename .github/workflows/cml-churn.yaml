@@ -43,23 +43,24 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          {
-            echo "# Customer Churn Model Training Report"
-            echo ""
-            echo "## Model Performance Metrics"
-            echo ""
-            cat metrics.txt
-            echo ""
-            echo "## Confusion Matrix Comparison"
-            echo ""
-            echo "Comparison of three approaches to handle class imbalance:"
-            echo ""
-            echo "1. **Without imbalance handling**"
-            echo "2. **With class weights**"
-            echo "3. **With SMOTE oversampling**"
-            echo ""
-            echo "![Confusion Matrix Comparison](conf_matrix.png)"
-          } > report.md
-
-          # Publish (auto uploads images in markdown)
-          cml comment create report.md --publish
+          cat > report.md << 'EOF'
+          # Customer Churn Model Training Report
+          
+          ## Model Performance Metrics
+          
+          EOF
+          cat metrics.txt >> report.md
+          cat >> report.md << 'EOF'
+          
+          ## Confusion Matrix Comparison
+          
+          Comparison of three approaches to handle class imbalance:
+          
+          1. **Without imbalance handling**
+          2. **With class weights**
+          3. **With SMOTE oversampling**
+          
+          ![Confusion Matrix Comparison](conf_matrix.png)
+          EOF
+          
+          cml comment create report.md
