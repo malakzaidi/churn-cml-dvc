@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Important pour DVC
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,21 +35,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install "dvc[gdrive]==3.63.0"
-          # pip install cml # uncomment if not in requirements.txt
 
       - name: Configure DVC remote for Google Drive (OAuth user creds)
         run: |
-          # 1. Recreate OAuth user credentials from secret
-          echo '${{ secrets.GDRIVE_CREDENTIALS_JSON }}' > gdrive_user_credentials.json
+          # Recréer les credentials OAuth depuis le secret
+          echo '${{ secrets.GDRIVE_CREDENTIALS_JSON }}' > gdrive-creds.json
           
-          # 2. Inject credentials into local DVC config
-          dvc remote modify --local new_gdrive gdrive_user_credentials_file gdrive_user_credentials.json
+          # Configurer DVC remote localement
+          dvc remote modify --local new_gdrive gdrive_user_credentials_file gdrive-creds.json
           dvc remote modify --local new_gdrive gdrive_client_id "${{ secrets.GDRIVE_CLIENT_ID }}"
           dvc remote modify --local new_gdrive gdrive_client_secret "${{ secrets.GDRIVE_CLIENT_SECRET }}"
           
           # Diagnostics
           dvc remote list
-          dvc config --local
+          cat .dvc/config.local
 
       - name: Pull data & models from DVC remote (Drive)
         run: |
@@ -56,27 +57,37 @@ jobs:
       - name: Train / Evaluate model(s)
         run: |
           python script.py
-          # script.py must produce:
-          # - metrics.txt
-          # - conf_matrix.png
-          # - optionally update models/
 
       - name: Track new artifacts with DVC
         run: |
-          dvc add data/models/
+          # Ajouter les changements aux fichiers trackés par DVC
+          dvc add models/
+          dvc add data/
+          
+          # Configurer Git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.dvc models.dvc
-          git commit -m "Update DVC artifacts [skip ci]" || echo "Nothing to commit"
+          
+          # Committer les fichiers .dvc mis à jour
+          git add data.dvc models.dvc .gitignore
+          git diff --cached --quiet || git commit -m "Update DVC artifacts [skip ci]"
 
       - name: Push data & models to DVC remote (Drive)
         run: |
           dvc push -v
 
+      - name: Push Git changes
+        if: github.event_name == 'push'
+        run: |
+          git push origin main
+
       - name: Generate and publish CML report
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "## Metrics" > report.md
-          awk 'NR % 4 { print " " $0 } { print "" }' metrics.txt >> report.md
+          cat metrics.txt >> report.md
+          echo "" >> report.md
           echo "## Confusion Matrix" >> report.md
-          echo "![](./conf_matrix.png)" >> report.md
+          echo "![Confusion Matrix](./conf_matrix.png)" >> report.md
           cml comment create report.md
