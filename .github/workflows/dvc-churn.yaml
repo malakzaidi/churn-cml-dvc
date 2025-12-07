@@ -4,7 +4,11 @@ on:
   push:
     branches:
       - main
+      - dev  # Add dev branch to trigger workflow
   pull_request:
+    branches:
+      - main
+      - dev
 
 permissions:
   contents: write
@@ -77,12 +81,15 @@ jobs:
             git commit -m "Update DVC metadata [skip ci]"
           fi
 
-      - name: Push Git changes to main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Push Git changes
+        if: github.event_name == 'push'
         run: |
+          # Get current branch name
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          
           # Pull with rebase in case there were concurrent changes
-          git pull --rebase origin main
-          git push origin main
+          git pull --rebase origin $BRANCH_NAME || true
+          git push origin $BRANCH_NAME
 
       - name: Generate and publish CML report
         env:
