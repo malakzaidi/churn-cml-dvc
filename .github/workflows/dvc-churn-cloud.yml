@@ -94,7 +94,7 @@ jobs:
       - name: Generate and publish CML report
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
+        run: |<
           echo "## Metrics" > report.md
           if [ -f metrics.txt ]; then
             cat metrics.txt >> report.md
@@ -108,4 +108,4 @@ jobs:
           else
             echo "No confusion matrix found" >> report.md
           fi
-          cml comment create report.md
+          cml comment create report.md>
