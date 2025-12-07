@@ -1,0 +1,111 @@
+name: churn-imbalanced-dataset
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install CML utility
+        uses: iterative/setup-cml@v2
+
+      - name: Install dependencies (Python, DVC, CML)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install "dvc[gdrive]==3.63.0"
+
+      - name: Configure DVC remote for Google Drive (OAuth user creds)
+        run: |
+          # Create credentials from secret
+          echo '${{ secrets.GDRIVE_CREDENTIALS_JSON }}' > gdrive-creds.json
+          
+          # Configure DVC remote locally
+          dvc remote modify --local new_gdrive gdrive_user_credentials_file gdrive-creds.json
+          dvc remote modify --local new_gdrive gdrive_client_id "${{ secrets.GDRIVE_CLIENT_ID }}"
+          dvc remote modify --local new_gdrive gdrive_client_secret "${{ secrets.GDRIVE_CLIENT_SECRET }}"
+
+      - name: Pull data & models from DVC remote (Drive)
+        run: |
+          dvc pull -v
+
+      - name: Train / Evaluate model(s)
+        run: |
+          python script.py
+
+      - name: Push updated data & models to DVC remote (Drive)
+        run: |
+          # Check if there are changes in DVC-tracked files
+          dvc status
+          
+          # Push any changes to remote
+          dvc push -v
+
+      - name: Commit DVC metadata changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Add only .dvc files and .gitignore
+          git add *.dvc .gitignore
+          
+          # Commit only if there are changes
+          if git diff --cached --quiet; then
+            echo "No DVC metadata changes to commit"
+          else
+            git commit -m "Update DVC metadata [skip ci]"
+          fi
+
+      - name: Push Git changes
+        if: github.event_name == 'push'
+        run: |
+          # Get current branch name
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          
+          # Pull with rebase in case there were concurrent changes
+          git pull --rebase origin $BRANCH_NAME || true
+          git push origin $BRANCH_NAME
+
+      - name: Generate and publish CML report
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "## Metrics" > report.md
+          if [ -f metrics.txt ]; then
+            cat metrics.txt >> report.md
+          else
+            echo "No metrics file found" >> report.md
+          fi
+          echo "" >> report.md
+          echo "## Confusion Matrix" >> report.md
+          if [ -f conf_matrix.png ]; then
+            echo "![Confusion Matrix](./conf_matrix.png)" >> report.md
+          else
+            echo "No confusion matrix found" >> report.md
+          fi
+          cml comment create report.md
