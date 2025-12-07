@@ -20,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Important pour DVC
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,17 +38,13 @@ jobs:
 
       - name: Configure DVC remote for Google Drive (OAuth user creds)
         run: |
-          # Recréer les credentials OAuth depuis le secret
+          # Create credentials from secret
           echo '${{ secrets.GDRIVE_CREDENTIALS_JSON }}' > gdrive-creds.json
           
-          # Configurer DVC remote localement
+          # Configure DVC remote locally
           dvc remote modify --local new_gdrive gdrive_user_credentials_file gdrive-creds.json
           dvc remote modify --local new_gdrive gdrive_client_id "${{ secrets.GDRIVE_CLIENT_ID }}"
           dvc remote modify --local new_gdrive gdrive_client_secret "${{ secrets.GDRIVE_CLIENT_SECRET }}"
-          
-          # Diagnostics
-          dvc remote list
-          cat .dvc/config.local
 
       - name: Pull data & models from DVC remote (Drive)
         run: |
@@ -58,27 +54,34 @@ jobs:
         run: |
           python script.py
 
-      - name: Track new artifacts with DVC
+      - name: Push updated data & models to DVC remote (Drive)
         run: |
-          # Ajouter les changements aux fichiers trackés par DVC
-          dvc add models/
-          dvc add data/
+          # Check if there are changes in DVC-tracked files
+          dvc status
           
-          # Configurer Git
+          # Push any changes to remote
+          dvc push -v
+
+      - name: Commit DVC metadata changes
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Committer les fichiers .dvc mis à jour
-          git add data.dvc models.dvc .gitignore
-          git diff --cached --quiet || git commit -m "Update DVC artifacts [skip ci]"
+          # Add only .dvc files and .gitignore
+          git add *.dvc .gitignore
+          
+          # Commit only if there are changes
+          if git diff --cached --quiet; then
+            echo "No DVC metadata changes to commit"
+          else
+            git commit -m "Update DVC metadata [skip ci]"
+          fi
 
-      - name: Push data & models to DVC remote (Drive)
+      - name: Push Git changes to main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          dvc push -v
-
-      - name: Push Git changes
-        if: github.event_name == 'push'
-        run: |
+          # Pull with rebase in case there were concurrent changes
+          git pull --rebase origin main
           git push origin main
 
       - name: Generate and publish CML report
@@ -86,8 +89,16 @@ jobs:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "## Metrics" > report.md
-          cat metrics.txt >> report.md
+          if [ -f metrics.txt ]; then
+            cat metrics.txt >> report.md
+          else
+            echo "No metrics file found" >> report.md
+          fi
           echo "" >> report.md
           echo "## Confusion Matrix" >> report.md
-          echo "![Confusion Matrix](./conf_matrix.png)" >> report.md
+          if [ -f conf_matrix.png ]; then
+            echo "![Confusion Matrix](./conf_matrix.png)" >> report.md
+          else
+            echo "No confusion matrix found" >> report.md
+          fi
           cml comment create report.md
